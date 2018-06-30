@@ -1,11 +1,13 @@
 package cn.css.NettyTrain;
 
 import io.netty.bootstrap.ServerBootstrap;
+import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.sctp.nio.NioSctpServerChannel;
 import io.netty.channel.socket.SocketChannel;
+import io.netty.channel.socket.nio.NioServerSocketChannel;
 
 import java.net.InetSocketAddress;
 
@@ -16,6 +18,27 @@ public class EchoServer {
         this.port = port;
     }
 
+    public void start() throws Exception {
+        final EchoHandler handler = new EchoHandler();
+        EventLoopGroup group = new NioEventLoopGroup();
+        try {
+            ServerBootstrap bootstrap = new ServerBootstrap();
+            bootstrap.group(group).channel(NioServerSocketChannel.class)
+                    .localAddress(new InetSocketAddress(port))
+                    .childHandler(new ChannelInitializer<SocketChannel>() {
+                        @Override
+                        protected void initChannel(SocketChannel channel) throws Exception {
+                            channel.pipeline().addLast(handler);
+                        }
+                    });
+
+            ChannelFuture future = bootstrap.bind().sync();
+            future.channel().closeFuture().sync();
+        } finally {
+            group.shutdownGracefully().sync();
+        }
+    }
+
     public static void main(String[] args) throws Exception {
         int port;
         if (args.length == 1) {
@@ -24,25 +47,5 @@ public class EchoServer {
             port = 9090;
         }
         new EchoServer(port).start();
-    }
-
-    public void start() throws Exception {
-
-        final EchoHandler handler = new EchoHandler();
-        EventLoopGroup group = new NioEventLoopGroup();
-
-        try {
-            ServerBootstrap bootstrap = new ServerBootstrap();
-            bootstrap.group(group).channel(NioSctpServerChannel.class)
-                    .localAddress(new InetSocketAddress(port))
-                    .childHandler(new ChannelInitializer<SocketChannel>() {
-                        @Override
-                        protected void initChannel(SocketChannel channel) throws Exception {
-                            channel.pipeline().addLast(handler);
-                        }
-                    });
-        } finally {
-            group.shutdownGracefully().sync();
-        }
     }
 }
